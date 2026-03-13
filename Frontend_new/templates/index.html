@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Logistics AI - Login</title>
+<meta name="description" content="Smart Logistics AI - Early Warning System for Shipment Delays. Predict SLA risks 48-72 hours in advance.">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="auth-page">
+
+  <!-- LEFT HERO -->
+  <div class="auth-hero">
+    <div class="auth-hero-logo">Smart Logistics <span>AI</span></div>
+
+    <div class="auth-hero-body">
+      <h1>Early Warning System for Shipment Delays</h1>
+      <p>
+        Our AI engine analyzes ETAs, weather disruptions, traffic updates, and
+        logistics signals to detect delivery risks up to 72 hours ahead.
+        Proactively reroute, reassign carriers, or trigger pre-alerts before
+        SLA commitments are missed.
+      </p>
+    </div>
+
+    <div class="auth-hero-stats">
+      <div class="auth-stat">
+        <span class="auth-stat-value">72h</span>
+        <span class="auth-stat-label">Advance Warning</span>
+      </div>
+      <div class="auth-stat">
+        <span class="auth-stat-value">Real-time</span>
+        <span class="auth-stat-label">Risk Scoring</span>
+      </div>
+      <div class="auth-stat">
+        <span class="auth-stat-value">Multi-leg</span>
+        <span class="auth-stat-label">Route Analysis</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="auth-panel">
+
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+
+    {% if success %}
+    <div class="alert alert-success">{{ success }}</div>
+    {% endif %}
+
+    <!-- TABS -->
+    <div class="auth-tabs">
+      <button class="auth-tab {% if not show_register %}active{% endif %}" id="tabLogin" onclick="switchTab('login')">
+        Sign In
+      </button>
+      <button class="auth-tab {% if show_register %}active{% endif %}" id="tabRegister" onclick="switchTab('register')">
+        Register Admin
+      </button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div id="loginSection" {% if show_register %}style="display:none"{% endif %}>
+      <p class="auth-panel-sub">Select your role and enter your credentials.</p>
+
+      <!-- Role toggle -->
+      <div class="role-toggle">
+        <button class="role-btn {% if role != 'employee' %}active{% endif %}" id="roleAdmin" onclick="switchRole('admin')">
+          Admin
+        </button>
+        <button class="role-btn {% if role == 'employee' %}active{% endif %}" id="roleEmployee" onclick="switchRole('employee')">
+          Employee
+        </button>
+      </div>
+
+      <!-- Admin Login -->
+      <form id="adminLoginForm" method="POST" action="/login/admin"
+            {% if role == 'employee' %}style="display:none"{% endif %}>
+        <div class="form-group">
+          <label class="form-label" for="admin-email">Email Address</label>
+          <input class="form-input" type="email" id="admin-email" name="email"
+                 placeholder="admin@company.com" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="admin-pass">Password</label>
+          <input class="form-input" type="password" id="admin-pass" name="password"
+                 placeholder="Enter password" required>
+        </div>
+        <button class="btn btn-primary" type="submit">Sign In as Admin</button>
+      </form>
+
+      <!-- Employee Login -->
+      <form id="employeeLoginForm" method="POST" action="/login/employee"
+            {% if role != 'employee' %}style="display:none"{% endif %}>
+        <div class="form-group">
+          <label class="form-label" for="emp-id">Employee ID</label>
+          <input class="form-input" type="text" id="emp-id" name="employee_id"
+                 placeholder="EMP-0000" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="emp-pass">Password</label>
+          <input class="form-input" type="password" id="emp-pass" name="password"
+                 placeholder="Enter password" required>
+        </div>
+        <button class="btn btn-primary" type="submit">Sign In as Employee</button>
+      </form>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div id="registerSection" {% if not show_register %}style="display:none"{% endif %}>
+      <p class="auth-panel-sub">Create an admin account to manage employees and view shipments.</p>
+      <form method="POST" action="/register">
+        <div class="form-group">
+          <label class="form-label" for="reg-user">Full Name</label>
+          <input class="form-input" type="text" id="reg-user" name="username"
+                 placeholder="Your full name" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reg-email">Email Address</label>
+          <input class="form-input" type="email" id="reg-email" name="email"
+                 placeholder="admin@company.com" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reg-pass">Password</label>
+          <input class="form-input" type="password" id="reg-pass" name="password"
+                 placeholder="Create a password" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reg-confirm">Confirm Password</label>
+          <input class="form-input" type="password" id="reg-confirm" name="confirm_password"
+                 placeholder="Repeat password" required>
+        </div>
+        <button class="btn btn-primary" type="submit">Register Now</button>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function switchTab(tab) {
+  const loginSection = document.getElementById('loginSection');
+  const registerSection = document.getElementById('registerSection');
+  const tabLogin = document.getElementById('tabLogin');
+  const tabReg = document.getElementById('tabRegister');
+
+  if (tab === 'login') {
+    loginSection.style.display = 'block';
+    registerSection.style.display = 'none';
+    tabLogin.classList.add('active');
+    tabReg.classList.remove('active');
+  } else {
+    loginSection.style.display = 'none';
+    registerSection.style.display = 'block';
+    tabReg.classList.add('active');
+    tabLogin.classList.remove('active');
+  }
+}
+
+function switchRole(role) {
+  const adminForm = document.getElementById('adminLoginForm');
+  const empForm = document.getElementById('employeeLoginForm');
+  const adminBtn = document.getElementById('roleAdmin');
+  const empBtn = document.getElementById('roleEmployee');
+
+  if (role === 'admin') {
+    adminForm.style.display = 'block';
+    empForm.style.display = 'none';
+    adminBtn.classList.add('active');
+    empBtn.classList.remove('active');
+  } else {
+    adminForm.style.display = 'none';
+    empForm.style.display = 'block';
+    empBtn.classList.add('active');
+    adminBtn.classList.remove('active');
+  }
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Logistics AI - OTP Verification</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<style>
+  .otp-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--gray-50);
+  }
+  .otp-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--border-radius-lg);
+    padding: 48px 44px;
+    width: 400px;
+    box-shadow: var(--shadow-lg);
+  }
+  .otp-brand {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 28px;
+  }
+  .otp-brand span { color: var(--accent); }
+  .otp-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 8px;
+  }
+  .otp-sub {
+    font-size: 13px;
+    color: var(--gray-500);
+    margin-bottom: 28px;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<div class="otp-page">
+  <div class="otp-card">
+    <div class="otp-brand">Smart Logistics <span>AI</span></div>
+    <div class="otp-title">Check your email</div>
+    <p class="otp-sub">
+      We sent a 6-digit verification code to your email address.
+      Enter it below to complete your admin registration.
+    </p>
+
+    {% if error %}
+    <div class="alert alert-error mb-16">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/verify_otp">
+      <div class="form-group">
+        <label class="form-label" for="otp-code">Verification Code</label>
+        <input class="form-input otp-input" type="text" id="otp-code" name="otp"
+               maxlength="6" placeholder="000000" autocomplete="one-time-code" required>
+      </div>
+      <button class="btn btn-primary mt-16" type="submit">Verify and Register</button>
+    </form>
+
+    <div style="margin-top:20px; text-align:center;">
+      <a href="/" style="font-size:13px; color:var(--gray-400); text-decoration:none;">
+        Back to sign in
+      </a>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

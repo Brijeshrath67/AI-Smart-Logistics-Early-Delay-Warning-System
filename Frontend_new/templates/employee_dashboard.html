@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Logistics AI - Employee Dashboard</title>
+<meta name="description" content="Employee shipment management - add routes, view risk scores, track shipments.">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<!-- Leaflet for map -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+<div class="dash-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">Smart Logistics <span>AI</span></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Shipments</div>
+      <button class="sidebar-link active" id="navNew" onclick="showSection('new')">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/>
+          <line x1="8" y1="12" x2="16" y2="12"/>
+        </svg>
+        New Shipment
+      </button>
+      <button class="sidebar-link" id="navHistory" onclick="showSection('history'); loadHistory(1)">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.48"/>
+        </svg>
+        Shipment History
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar">{{ session.employee_name[0]|upper }}</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name">{{ session.employee_name }}</div>
+          <div class="sidebar-user-role">
+            <span class="emp-id" style="font-size:10px;">{{ session.employee_id }}</span>
+          </div>
+        </div>
+      </div>
+      <a href="/logout" class="sidebar-link" style="margin-top:8px; color:var(--danger);">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Sign Out
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="dash-main">
+    <div class="dash-topbar">
+      <span class="dash-topbar-title" id="topbarTitle">New Shipment</span>
+      <span class="text-sm text-muted" id="topbarSub">Enter route details below</span>
+    </div>
+
+    <div class="dash-content">
+
+      <!-- ============ NEW SHIPMENT SECTION ============ -->
+      <div id="sectionNew">
+
+        <div class="grid-2">
+
+          <!-- LEFT: Form -->
+          <div>
+            <div class="card">
+              <div class="card-title">Route Configuration</div>
+
+              <div class="form-group">
+                <label class="form-label" for="slaDeadline">SLA Deadline</label>
+                <input class="form-input" type="datetime-local" id="slaDeadline" required>
+              </div>
+
+              <div style="margin-bottom:14px;">
+                <div class="flex items-center justify-between mb-8">
+                  <label class="form-label mb-0">Route Legs</label>
+                  <button class="btn btn-outline btn-sm" onclick="addLeg()">+ Add Leg</button>
+                </div>
+                <div id="legsContainer"></div>
+              </div>
+
+              <button class="btn btn-primary" id="submitBtn" onclick="submitShipment()">
+                Analyze and Submit Shipment
+              </button>
+
+              <div id="submitError" class="alert alert-error mt-16 hidden"></div>
+            </div>
+          </div>
+
+          <!-- RIGHT: Map -->
+          <div>
+            <div class="card">
+              <div class="card-title">Route Map</div>
+              <div id="map"></div>
+              <div id="mapHint" class="text-sm text-muted mt-8 text-center">
+                Route will appear here after submission
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results section (shown after submit) -->
+        <div id="resultsSection" class="results-section">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title mb-4">Analysis Results</div>
+                <div class="text-sm text-muted" id="resultRef"></div>
+              </div>
+              <div id="overallBadge"></div>
+            </div>
+
+            <div class="grid-3 mb-24" id="overallStats"></div>
+
+            <div class="card-title">Leg-by-Leg Breakdown</div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Leg</th>
+                    <th>Origin</th>
+                    <th>Destination</th>
+                    <th>Distance</th>
+                    <th>ETA</th>
+                    <th>SLA Risk</th>
+                    <th>Delay Risk</th>
+                    <th>Recommendation</th>
+                  </tr>
+                </thead>
+                <tbody id="legsResultBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ============ HISTORY SECTION ============ -->
+      <div id="sectionHistory" class="hidden">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title mb-0">Shipment History</div>
+            <span class="text-sm text-muted" id="historyTotal"></span>
+          </div>
+          <div id="historyTableWrap">
+            <div class="empty-state"><div class="spinner"></div></div>
+          </div>
+          <div class="pagination" id="historyPagination"></div>
+        </div>
+
+        <!-- Detail panel shown below history table when a row is clicked -->
+        <div id="detailPanel" class="hidden">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title mb-4">Shipment Detail</div>
+                <div class="text-sm text-muted" id="detailRef"></div>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="closeDetail()">Close</button>
+            </div>
+            <div id="detailMap" style="height:320px;border-radius:var(--border-radius-lg);border:1px solid var(--gray-200);margin-bottom:20px;"></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Leg</th><th>Origin</th><th>Destination</th>
+                    <th>Distance</th><th>ETA</th><th>SLA Risk</th><th>Delay Risk</th>
+                    <th>Recommendation</th>
+                  </tr>
+                </thead>
+                <tbody id="detailLegsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- State ----
+let mapInstance = null;
+let detailMapInstance = null;
+let legCount = 0;
+let currentHistoryPage = 1;
+
+// ---- Init ----
+document.addEventListener('DOMContentLoaded', () => {
+  // Default SLA to 72h from now
+  const d = new Date(Date.now() + 72 * 3600000);
+  const pad = n => String(n).padStart(2,'0');
+  document.getElementById('slaDeadline').value =
+    `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+  addLeg();
+  addLeg();
+  initMap('map');
+});
+
+// ---- Map helpers ----
+function initMap(containerId) {
+  if (mapInstance) { mapInstance.remove(); mapInstance = null; }
+  mapInstance = L.map(containerId, { zoomControl: true }).setView([20.5937, 78.9629], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors', maxZoom: 18
+  }).addTo(mapInstance);
+  return mapInstance;
+}
+
+function initDetailMap(containerId) {
+  if (detailMapInstance) { detailMapInstance.remove(); detailMapInstance = null; }
+  detailMapInstance = L.map(containerId, { zoomControl: true }).setView([20.5937, 78.9629], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors', maxZoom: 18
+  }).addTo(detailMapInstance);
+  return detailMapInstance;
+}
+
+function drawRouteOnMap(mapObj, legs) {
+  // Clear existing layers
+  mapObj.eachLayer(layer => {
+    if (layer instanceof L.Polyline || layer instanceof L.Marker) mapObj.removeLayer(layer);
+  });
+
+  const points = [];
+  const colors = ['#2563eb','#d97706','#16a34a','#7c3aed','#dc2626','#0891b2'];
+
+  legs.forEach((leg, idx) => {
+    if (!leg.origin_lat || !leg.dest_lat) return;
+    const oLatLng = [leg.origin_lat, leg.origin_lon];
+    const dLatLng = [leg.dest_lat, leg.dest_lon];
+    points.push(oLatLng, dLatLng);
+
+    const color = colors[idx % colors.length];
+
+    L.polyline([oLatLng, dLatLng], { color, weight: 3, opacity: 0.8 }).addTo(mapObj);
+
+    // Origin marker
+    L.circleMarker(oLatLng, {
+      radius: 7, fillColor: color, color: '#fff', weight: 2, fillOpacity: 1
+    }).bindTooltip(`Leg ${leg.sequence} Origin: ${leg.origin}`, { sticky: true }).addTo(mapObj);
+
+    // Destination marker (star-like)
+    L.circleMarker(dLatLng, {
+      radius: 8, fillColor: '#fff', color: color, weight: 3, fillOpacity: 1
+    }).bindTooltip(`Leg ${leg.sequence} Dest: ${leg.destination}`, { sticky: true }).addTo(mapObj);
+  });
+
+  if (points.length) {
+    mapObj.fitBounds(L.latLngBounds(points), { padding: [30, 30] });
+  }
+}
+
+// ---- Leg management ----
+function addLeg() {
+  legCount++;
+  const container = document.getElementById('legsContainer');
+  const div = document.createElement('div');
+  div.className = 'leg-row';
+  div.id = `leg-${legCount}`;
+  div.innerHTML = `
+    <div>
+      <div class="leg-seq">Leg ${legCount} - Origin</div>
+      <input class="form-input" type="text" placeholder="e.g. Mumbai" data-leg="${legCount}" data-type="origin">
+    </div>
+    <div>
+      <div class="leg-seq">Leg ${legCount} - Destination</div>
+      <input class="form-input" type="text" placeholder="e.g. Delhi" data-leg="${legCount}" data-type="destination">
+    </div>
+    <div style="padding-top:22px;">
+      ${legCount > 1 ? `<button class="btn btn-danger btn-sm" onclick="removeLeg(${legCount})" title="Remove leg">X</button>` : '<span></span>'}
+    </div>
+  `;
+  container.appendChild(div);
+}
+
+function removeLeg(n) {
+  const el = document.getElementById(`leg-${n}`);
+  if (el) el.remove();
+}
+
+function collectLegs() {
+  const legs = [];
+  document.querySelectorAll('#legsContainer .leg-row').forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const origin = inputs[0].value.trim();
+    const dest = inputs[1].value.trim();
+    if (origin && dest) legs.push({ origin, destination: dest });
+  });
+  return legs;
+}
+
+// ---- Submit ----
+async function submitShipment() {
+  const sla = document.getElementById('slaDeadline').value;
+  const legs = collectLegs();
+  const errEl = document.getElementById('submitError');
+  const btn = document.getElementById('submitBtn');
+
+  if (!sla) { showError('Please set an SLA deadline.'); return; }
+  if (!legs.length) { showError('Please enter at least one complete leg.'); return; }
+
+  errEl.classList.add('hidden');
+  btn.innerHTML = '<span class="spinner"></span> Analyzing...';
+  btn.disabled = true;
+
+  try {
+    const resp = await fetch('/employee/add_shipment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sla_deadline: sla.replace('T',' '), legs })
+    });
+    const data = await resp.json();
+
+    if (!resp.ok || data.error) {
+      showError(data.error || 'Submission failed.');
+      btn.innerHTML = 'Analyze and Submit Shipment';
+      btn.disabled = false;
+      return;
+    }
+
+    renderResults(data);
+    drawRouteOnMap(mapInstance, data.legs);
+    document.getElementById('mapHint').textContent = `Route displayed for ${data.shipment_ref}`;
+
+    btn.innerHTML = 'Analyze and Submit Shipment';
+    btn.disabled = false;
+
+  } catch (e) {
+    showError('Network error. Please try again.');
+    btn.innerHTML = 'Analyze and Submit Shipment';
+    btn.disabled = false;
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('submitError');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function renderResults(data) {
+  const sec = document.getElementById('resultsSection');
+  sec.classList.add('visible');
+
+  document.getElementById('resultRef').textContent =
+    `Shipment Reference: ${data.shipment_ref}`;
+
+  const risk = data.overall_risk_score;
+  let badgeClass = risk >= 70 ? 'risk-high' : risk >= 40 ? 'risk-medium' : 'risk-low';
+  document.getElementById('overallBadge').innerHTML =
+    `<span class="risk-badge ${badgeClass}" style="font-size:14px;padding:6px 16px;">${risk}% Risk</span>`;
+
+  document.getElementById('overallStats').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Shipment Ref</div>
+      <div class="stat-value" style="font-size:18px;">${data.shipment_ref}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Overall Risk</div>
+      <div class="stat-value" style="font-size:22px;color:${riskColor(risk)};">${risk}%</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Recommendation</div>
+      <div style="margin-top:6px;">${recToChip(data.recommendation)}</div>
+    </div>
+  `;
+
+  const tbody = document.getElementById('legsResultBody');
+  tbody.innerHTML = '';
+  data.legs.forEach(leg => {
+    const slaC = riskColor(leg.sla_risk);
+    const delC = riskColor(leg.delay_risk);
+    tbody.innerHTML += `<tr>
+      <td><strong>${leg.sequence}</strong></td>
+      <td>${leg.origin}</td>
+      <td>${leg.destination}</td>
+      <td>${leg.distance_km} km</td>
+      <td>${formatEta(leg.eta_hours)}</td>
+      <td>
+        <div class="risk-bar-wrap">
+          <div class="risk-bar-bg"><div class="risk-bar-fill" style="width:${leg.sla_risk}%;background:${slaC};"></div></div>
+          <span class="risk-bar-label" style="color:${slaC};">${leg.sla_risk}%</span>
+        </div>
+      </td>
+      <td>
+        <div class="risk-bar-wrap">
+          <div class="risk-bar-bg"><div class="risk-bar-fill" style="width:${leg.delay_risk}%;background:${delC};"></div></div>
+          <span class="risk-bar-label" style="color:${delC};">${leg.delay_risk}%</span>
+        </div>
+      </td>
+      <td>${recToChip(leg.leg_recommendation)}</td>
+    </tr>`;
+  });
+
+  sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ---- History ----
+function loadHistory(page) {
+  currentHistoryPage = page;
+  const wrap = document.getElementById('historyTableWrap');
+  wrap.innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
+
+  fetch(`/employee/shipments?page=${page}`)
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('historyTotal').textContent =
+        `${data.total} total shipment${data.total !== 1 ? 's' : ''}`;
+
+      if (!data.shipments.length) {
+        wrap.innerHTML = '<div class="empty-state"><div class="empty-state-title">No shipments yet</div></div>';
+        document.getElementById('historyPagination').innerHTML = '';
+        return;
+      }
+
+      let html = '<div class="table-wrap"><table><thead><tr>' +
+        '<th>Reference</th><th>Date</th><th>SLA Deadline</th><th>Status</th>' +
+        '<th>Risk Score</th><th>Recommendation</th><th>Details</th>' +
+        '</tr></thead><tbody>';
+
+      data.shipments.forEach(s => {
+        const risk = s.overall_risk_score;
+        let badgeClass = risk >= 70 ? 'risk-high' : risk >= 40 ? 'risk-medium' : 'risk-low';
+        html += `<tr>
+          <td><span class="emp-id">${s.shipment_ref}</span></td>
+          <td>${s.date_of_shipment}</td>
+          <td>${s.sla_deadline.slice(0,16).replace('T',' ')}</td>
+          <td>${s.status}</td>
+          <td>
+            <div class="risk-bar-wrap">
+              <div class="risk-bar-bg">
+                <div class="risk-bar-fill" style="width:${risk}%;background:${riskColor(risk)};"></div>
+              </div>
+              <span class="risk-bar-label" style="color:${riskColor(risk)};">${risk}%</span>
+            </div>
+          </td>
+          <td>${recToChip(s.recommendation)}</td>
+          <td>
+            <button class="btn btn-outline btn-sm" onclick="viewDetail('${s.id}')">View</button>
+          </td>
+        </tr>`;
+      });
+
+      html += '</tbody></table></div>';
+      wrap.innerHTML = html;
+
+      // Pagination
+      const total = data.total;
+      const perPage = data.per_page;
+      const pages = Math.ceil(total / perPage);
+      let pag = '';
+      if (pages > 1) {
+        pag += `<button class="page-btn" onclick="loadHistory(${page-1})" ${page<=1?'disabled':''}>Prev</button>`;
+        for (let p = 1; p <= pages; p++) {
+          pag += `<button class="page-btn ${p===page?'active':''}" onclick="loadHistory(${p})">${p}</button>`;
+        }
+        pag += `<button class="page-btn" onclick="loadHistory(${page+1})" ${page>=pages?'disabled':''}>Next</button>`;
+      }
+      document.getElementById('historyPagination').innerHTML = pag;
+    });
+}
+
+function viewDetail(shipmentId) {
+  const panel = document.getElementById('detailPanel');
+  const body = document.getElementById('detailLegsBody');
+  panel.classList.remove('hidden');
+  body.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner" style="margin:0 auto;"></div></td></tr>';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  fetch(`/employee/shipment/${shipmentId}`)
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('detailRef').textContent =
+        `Ref: ${data.shipment_ref}  |  SLA: ${data.sla_deadline.slice(0,16).replace('T',' ')}  |  Risk: ${data.overall_risk_score}%  |  ${data.recommendation}`;
+
+      // Draw map
+      setTimeout(() => {
+        const dm = initDetailMap('detailMap');
+        drawRouteOnMap(dm, data.legs);
+      }, 100);
+
+      body.innerHTML = '';
+      data.legs.forEach(leg => {
+        const slaC = riskColor(leg.sla_risk);
+        const delC = riskColor(leg.delay_risk);
+        body.innerHTML += `<tr>
+          <td><strong>${leg.sequence}</strong></td>
+          <td>${leg.origin}</td>
+          <td>${leg.destination}</td>
+          <td>${leg.distance_km} km</td>
+          <td>${formatEta(leg.eta_hours)}</td>
+          <td>
+            <div class="risk-bar-wrap">
+              <div class="risk-bar-bg"><div class="risk-bar-fill" style="width:${leg.sla_risk}%;background:${slaC};"></div></div>
+              <span class="risk-bar-label" style="color:${slaC};">${leg.sla_risk}%</span>
+            </div>
+          </td>
+          <td>
+            <div class="risk-bar-wrap">
+              <div class="risk-bar-bg"><div class="risk-bar-fill" style="width:${leg.delay_risk}%;background:${delC};"></div></div>
+              <span class="risk-bar-label" style="color:${delC};">${leg.delay_risk}%</span>
+            </div>
+          </td>
+          <td>${recToChip(leg.leg_recommendation)}</td>
+        </tr>`;
+      });
+    });
+}
+
+function closeDetail() {
+  document.getElementById('detailPanel').classList.add('hidden');
+  if (detailMapInstance) { detailMapInstance.remove(); detailMapInstance = null; }
+}
+
+// ---- Section nav ----
+function showSection(name) {
+  document.getElementById('sectionNew').classList.toggle('hidden', name !== 'new');
+  document.getElementById('sectionHistory').classList.toggle('hidden', name !== 'history');
+  document.getElementById('navNew').classList.toggle('active', name === 'new');
+  document.getElementById('navHistory').classList.toggle('active', name === 'history');
+  document.getElementById('topbarTitle').textContent = name === 'new' ? 'New Shipment' : 'Shipment History';
+  document.getElementById('topbarSub').textContent = name === 'new' ? 'Enter route details below' : 'Your complete shipment record';
+
+  // Invalidate map size when switching back to new section
+  if (name === 'new' && mapInstance) {
+    setTimeout(() => mapInstance.invalidateSize(), 50);
+  }
+}
+
+// ---- Utilities ----
+function riskColor(score) {
+  if (score >= 70) return '#dc2626';
+  if (score >= 40) return '#d97706';
+  return '#16a34a';
+}
+
+function recToChip(rec) {
+  if (!rec) return '-';
+  if (rec.toLowerCase().includes('reroute')) return `<span class="rec-chip reroute">${rec}</span>`;
+  if (rec.toLowerCase().includes('carrier')) return `<span class="rec-chip carrier">${rec}</span>`;
+  if (rec.toLowerCase().includes('pre-alert')) return `<span class="rec-chip prealert">${rec}</span>`;
+  return `<span class="rec-chip">${rec}</span>`;
+}
+
+function formatEta(hours) {
+  if (!hours) return '-';
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+</script>
+
+</body>
+</html>

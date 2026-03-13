@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Logistics AI - Admin Dashboard</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="dash-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">Smart Logistics <span>AI</span></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Management</div>
+      <button class="sidebar-link active" id="navEmployees" onclick="showSection('employees')">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Employees
+      </button>
+      <button class="sidebar-link" id="navShipments" onclick="showSection('shipments')">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+          <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+        </svg>
+        Shipment Viewer
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar">{{ session.admin_name[0]|upper }}</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name">{{ session.admin_name }}</div>
+          <div class="sidebar-user-role">Admin</div>
+        </div>
+      </div>
+      <a href="/logout" class="sidebar-link" style="margin-top:8px; color:var(--danger);">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Sign Out
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="dash-main">
+    <div class="dash-topbar">
+      <span class="dash-topbar-title" id="topbarTitle">Employee Management</span>
+    </div>
+
+    <div class="dash-content">
+
+      <!-- ============ EMPLOYEES SECTION ============ -->
+      <div id="sectionEmployees">
+
+        <div class="grid-2" style="margin-bottom:24px;">
+
+          <!-- Add employee card -->
+          <div class="card mb-0">
+            <div class="card-title">Add New Employee</div>
+            <form method="POST" action="/admin/add_employee" id="addEmpForm">
+              <div class="form-group">
+                <label class="form-label" for="emp-name">Full Name</label>
+                <input class="form-input" type="text" id="emp-name" name="name"
+                       placeholder="Employee full name" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="emp-email">Email Address</label>
+                <input class="form-input" type="email" id="emp-email" name="email"
+                       placeholder="employee@company.com" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="emp-pass">Password</label>
+                <input class="form-input" type="password" id="emp-pass" name="password"
+                       placeholder="Set a password" required>
+              </div>
+              <button class="btn btn-primary" type="submit">Add Employee</button>
+            </form>
+          </div>
+
+          <!-- Stats card -->
+          <div class="card mb-0" style="display:flex;flex-direction:column;justify-content:center;">
+            <div class="stat-label">Total Employees</div>
+            <div class="stat-value">{{ employees|length }}</div>
+            <div class="stat-sub">Under your admin account</div>
+            <hr>
+            <div class="text-sm text-muted" style="margin-top:8px;">
+              Employee IDs are auto-generated in the format
+              <span class="emp-id">EMP-XXXX</span>. Share the ID and password
+              with the employee for login.
+            </div>
+          </div>
+        </div>
+
+        <!-- Employee table -->
+        <div class="card">
+          <div class="card-title">All Employees</div>
+          {% if employees %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Employee ID</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Added On</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for emp in employees %}
+                <tr>
+                  <td><span class="emp-id">{{ emp[0] }}</span></td>
+                  <td>{{ emp[1] }}</td>
+                  <td>{{ emp[2] }}</td>
+                  <td>{{ emp[3].strftime('%d %b %Y') if emp[3] else '-' }}</td>
+                  <td>
+                    <form method="POST" action="/admin/remove_employee" style="display:inline;"
+                          onsubmit="return confirm('Remove employee {{ emp[1] }}? All their shipment data will also be deleted.')">
+                      <input type="hidden" name="employee_id" value="{{ emp[0] }}">
+                      <button class="btn btn-danger" type="submit">Remove</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="empty-state">
+            <div class="empty-state-title">No employees yet</div>
+            <div class="text-sm text-muted">Use the form above to add your first employee.</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- ============ SHIPMENT VIEWER SECTION ============ -->
+      <div id="sectionShipments" class="hidden">
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title mb-0">Shipment Viewer</div>
+          </div>
+          <div class="filter-bar mb-16">
+            <div class="form-group mb-0" style="flex:0 0 auto;">
+              <label class="form-label" for="filterDate">Date</label>
+              <input class="form-input" type="date" id="filterDate"
+                     value="{{ today }}" style="width:180px;">
+            </div>
+            <div class="form-group mb-0" style="flex:0 0 auto;">
+              <label class="form-label" for="filterEmp">Employee</label>
+              <select class="form-input" id="filterEmp" style="width:220px;">
+                <option value="">All Employees</option>
+              </select>
+            </div>
+            <div style="align-self:flex-end;">
+              <button class="btn btn-primary btn-sm" onclick="loadShipments()">Load Shipments</button>
+            </div>
+          </div>
+          <div id="shipmentTableWrap">
+            <div class="empty-state">
+              <div class="empty-state-title">Select a date and click Load Shipments</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// Set today's date on the filter input
+document.getElementById('filterDate').value = new Date().toISOString().split('T')[0];
+
+function showSection(name) {
+  document.getElementById('sectionEmployees').classList.toggle('hidden', name !== 'employees');
+  document.getElementById('sectionShipments').classList.toggle('hidden', name !== 'shipments');
+  document.getElementById('topbarTitle').textContent =
+    name === 'employees' ? 'Employee Management' : 'Shipment Viewer';
+  document.getElementById('navEmployees').classList.toggle('active', name === 'employees');
+  document.getElementById('navShipments').classList.toggle('active', name === 'shipments');
+  if (name === 'shipments') loadEmployeeOptions();
+}
+
+function loadEmployeeOptions() {
+  const date = document.getElementById('filterDate').value;
+  fetch(`/admin/shipments?date=${date}`)
+    .then(r => r.json())
+    .then(data => {
+      const sel = document.getElementById('filterEmp');
+      const prev = sel.value;
+      sel.innerHTML = '<option value="">All Employees</option>';
+      (data.employees || []).forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.employee_id;
+        opt.textContent = `${e.name} (${e.employee_id})`;
+        if (e.employee_id === prev) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    });
+}
+
+function loadShipments() {
+  const date = document.getElementById('filterDate').value;
+  const emp = document.getElementById('filterEmp').value;
+  const wrap = document.getElementById('shipmentTableWrap');
+  wrap.innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
+
+  fetch(`/admin/shipments?date=${date}&employee_id=${emp}`)
+    .then(r => r.json())
+    .then(data => {
+      // Refresh employee options
+      const sel = document.getElementById('filterEmp');
+      const prev = sel.value;
+      sel.innerHTML = '<option value="">All Employees</option>';
+      (data.employees || []).forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.employee_id;
+        opt.textContent = `${e.name} (${e.employee_id})`;
+        if (e.employee_id === prev) opt.selected = true;
+        sel.appendChild(opt);
+      });
+
+      const shipments = data.shipments || [];
+      if (!shipments.length) {
+        wrap.innerHTML = '<div class="empty-state"><div class="empty-state-title">No shipments found for this date</div></div>';
+        return;
+      }
+
+      let html = '<div class="table-wrap"><table><thead><tr>' +
+        '<th>Ref</th><th>Employee</th><th>Status</th><th>SLA Deadline</th>' +
+        '<th>Risk Score</th><th>Recommendation</th><th>Created</th>' +
+        '</tr></thead><tbody>';
+
+      shipments.forEach(s => {
+        const risk = s.overall_risk_score;
+        let badgeClass = risk >= 70 ? 'risk-high' : risk >= 40 ? 'risk-medium' : 'risk-low';
+        let recChip = recToChip(s.recommendation);
+        const sla = s.sla_deadline ? s.sla_deadline.slice(0,16).replace('T',' ') : '-';
+        const cr = s.created_at ? s.created_at.slice(0,16).replace('T',' ') : '-';
+        html += `<tr>
+          <td><span class="emp-id">${s.shipment_ref}</span></td>
+          <td>${s.employee_name}<br><span class="text-muted text-sm">${s.employee_id}</span></td>
+          <td>${s.status}</td>
+          <td>${sla}</td>
+          <td>
+            <div class="risk-bar-wrap">
+              <div class="risk-bar-bg">
+                <div class="risk-bar-fill" style="width:${risk}%;background:${riskColor(risk)};"></div>
+              </div>
+              <span class="risk-bar-label ${badgeClass}" style="background:none;">${risk}%</span>
+            </div>
+          </td>
+          <td>${recChip}</td>
+          <td>${cr}</td>
+        </tr>`;
+      });
+
+      html += '</tbody></table></div>';
+      wrap.innerHTML = html;
+    })
+    .catch(() => {
+      wrap.innerHTML = '<div class="alert alert-error">Failed to load shipments.</div>';
+    });
+}
+
+function riskColor(score) {
+  if (score >= 70) return '#dc2626';
+  if (score >= 40) return '#d97706';
+  return '#16a34a';
+}
+
+function recToChip(rec) {
+  if (!rec) return '-';
+  if (rec.toLowerCase().includes('reroute')) return `<span class="rec-chip reroute">${rec}</span>`;
+  if (rec.toLowerCase().includes('carrier')) return `<span class="rec-chip carrier">${rec}</span>`;
+  if (rec.toLowerCase().includes('pre-alert') || rec.toLowerCase().includes('prealert')) return `<span class="rec-chip prealert">${rec}</span>`;
+  return `<span class="rec-chip">${rec}</span>`;
+}
+</script>
+
+</body>
+</html>
