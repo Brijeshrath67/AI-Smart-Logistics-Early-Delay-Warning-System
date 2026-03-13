@@ -1,6 +1,0 @@
-pandas
-numpy
-folium
-scikit-learn
-xgboost
-requests
