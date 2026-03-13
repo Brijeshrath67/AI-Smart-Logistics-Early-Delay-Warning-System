@@ -9,6 +9,100 @@
 <!-- Leaflet for map -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+/* ---- Model Info Extra Styles ---- */
+.model-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 60%, #2563eb 100%);
+  border-radius: var(--border-radius-lg);
+  padding: 28px 32px;
+  color: #fff;
+  margin-bottom: 24px;
+}
+.model-hero-icon {
+  width: 60px; height: 60px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.model-hero-icon svg { width:32px; height:32px; stroke: #fff; }
+.model-hero-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.model-hero-sub   { font-size: 13px; opacity: 0.8; }
+
+.model-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.model-kpi {
+  background: var(--surface);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--border-radius);
+  padding: 20px;
+  text-align: center;
+}
+.model-kpi-val  { font-size: 28px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+.model-kpi-label{ font-size: 12px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: .5px; }
+
+.fi-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.fi-bar-name  { width: 130px; font-size: 13px; color: var(--text); flex-shrink: 0; text-align: right; }
+.fi-bar-track { flex: 1; height: 14px; background: var(--gray-100); border-radius: 9px; overflow: hidden; }
+.fi-bar-fill  { height: 100%; background: linear-gradient(90deg, #2563eb, #7c3aed); border-radius: 9px; transition: width .6s ease; }
+.fi-bar-pct   { width: 42px; font-size: 12px; color: var(--text-muted); text-align: right; flex-shrink: 0; }
+
+.cm-table { border-collapse: collapse; width: auto; margin: 0 auto; }
+.cm-table th, .cm-table td {
+  border: 1px solid var(--gray-200);
+  padding: 12px 20px;
+  text-align: center;
+  font-size: 13px;
+}
+.cm-table thead th { background: var(--gray-50); font-weight: 600; }
+.cm-tp { background: #dcfce7; color: #166534; font-weight: 700; }
+.cm-tn { background: #dbeafe; color: #1e40af; font-weight: 700; }
+.cm-fp { background: #fef9c3; color: #854d0e; font-weight: 700; }
+.cm-fn { background: #fee2e2; color: #991b1b; font-weight: 700; }
+
+.hp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.hp-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--gray-50);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+.hp-key  { color: var(--text-muted); }
+.hp-val  { font-weight: 600; color: var(--primary); }
+
+/* Delay-prob pill in leg table */
+.prob-pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.prob-high   { background: #fee2e2; color: #dc2626; }
+.prob-medium { background: #fef9c3; color: #b45309; }
+.prob-low    { background: #dcfce7; color: #166534; }
+
+.weather-icon { font-size: 16px; }
+</style>
 </head>
 <body>
 
@@ -32,6 +126,14 @@
           <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.48"/>
         </svg>
         Shipment History
+      </button>
+      <button class="sidebar-link" id="navModel" onclick="showSection('model'); loadModelInfo()">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+        Model Info
       </button>
     </div>
 
@@ -130,8 +232,11 @@
                     <th>Destination</th>
                     <th>Distance</th>
                     <th>ETA</th>
+                    <th>Weather</th>
+                    <th>Traffic</th>
                     <th>SLA Risk</th>
-                    <th>Delay Risk</th>
+                    <th>Delay Risk (AI)</th>
+                    <th>Probability</th>
                     <th>Recommendation</th>
                   </tr>
                 </thead>
@@ -172,7 +277,8 @@
                 <thead>
                   <tr>
                     <th>Leg</th><th>Origin</th><th>Destination</th>
-                    <th>Distance</th><th>ETA</th><th>SLA Risk</th><th>Delay Risk</th>
+                    <th>Distance</th><th>ETA</th><th>Weather</th><th>Traffic</th>
+                    <th>SLA Risk</th><th>Delay Risk (AI)</th><th>Probability</th>
                     <th>Recommendation</th>
                   </tr>
                 </thead>
@@ -182,6 +288,98 @@
           </div>
         </div>
       </div>
+
+      <!-- ============ MODEL INFO SECTION ============ -->
+      <div id="sectionModel" class="hidden">
+
+        <!-- Hero banner -->
+        <div class="model-hero">
+          <div class="model-hero-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+              <path d="M2 17l10 5 10-5"/>
+              <path d="M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <div>
+            <div class="model-hero-title">XGBoost Delay Prediction Model</div>
+            <div class="model-hero-sub">AI-powered shipment risk engine — trained on Odisha logistics data</div>
+          </div>
+        </div>
+
+        <!-- KPI cards -->
+        <div class="model-kpi-grid" id="modelKpiGrid">
+          <div class="model-kpi"><div class="spinner" style="margin:0 auto;width:20px;height:20px;"></div></div>
+        </div>
+
+        <!-- Two-column: Feature Importance + Confusion Matrix -->
+        <div class="grid-2" style="margin-bottom:24px;">
+
+          <!-- Feature Importance -->
+          <div class="card">
+            <div class="card-title">Feature Importance</div>
+            <div class="text-sm text-muted mb-16" style="margin-top:-8px;">
+              Which inputs most influence the model's delay prediction
+            </div>
+            <div id="featureImportanceChart"></div>
+          </div>
+
+          <!-- Confusion Matrix -->
+          <div class="card">
+            <div class="card-title">Confusion Matrix</div>
+            <div class="text-sm text-muted mb-16" style="margin-top:-8px;">
+              Model performance on the test set (20% hold-out)
+            </div>
+            <div id="confusionMatrix" style="overflow-x:auto;"></div>
+
+            <div style="margin-top:20px;">
+              <div class="card-title" style="font-size:14px;">What each cell means</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+                <div class="hp-row"><span class="hp-key">✅ True Positive</span><span class="hp-val">Delayed, predicted delayed</span></div>
+                <div class="hp-row"><span class="hp-key">✅ True Negative</span><span class="hp-val">On-time, predicted on-time</span></div>
+                <div class="hp-row"><span class="hp-key">⚠️ False Positive</span><span class="hp-val">On-time, predicted delayed</span></div>
+                <div class="hp-row"><span class="hp-key">❌ False Negative</span><span class="hp-val">Delayed, predicted on-time</span></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Hyperparameters + Description -->
+        <div class="grid-2">
+
+          <div class="card">
+            <div class="card-title">Model Hyperparameters</div>
+            <div class="hp-grid" id="hyperparamsGrid"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">How the Model Works</div>
+            <div style="font-size:13px;line-height:1.75;color:var(--text);">
+              <p style="margin:0 0 12px;">
+                The <strong>XGBoost classifier</strong> uses gradient-boosted decision trees to predict whether a
+                shipment will be delayed based on seven features extracted at booking time.
+              </p>
+              <p style="margin:0 0 12px;">
+                <strong>Input features per leg:</strong> origin city, destination city, route distance (km),
+                live weather condition, live traffic level, carrier reliability score, and estimated travel time.
+              </p>
+              <p style="margin:0 0 12px;">
+                The model returns a <strong>delay probability</strong> (0–1). This is multiplied by 100 to give
+                the "Delay Risk %" you see in the results. The overall shipment risk combines this with an
+                SLA-based deadline score.
+              </p>
+              <p style="margin:0;">
+                <strong>Live data inputs</strong>: weather is fetched from OpenWeatherMap; traffic is fetched
+                from TomTom Flow API — both at submission time for the most accurate assessment.
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+      <!-- ============ END MODEL INFO ============ -->
 
     </div>
   </div>
@@ -193,6 +391,7 @@ let mapInstance = null;
 let detailMapInstance = null;
 let legCount = 0;
 let currentHistoryPage = 1;
+let modelInfoLoaded = false;
 
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', () => {
@@ -204,61 +403,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   addLeg();
   addLeg();
-  initMap('map');
 });
 
 // ---- Map helpers ----
-function initMap(containerId) {
-  if (mapInstance) { mapInstance.remove(); mapInstance = null; }
-  mapInstance = L.map(containerId, { zoomControl: true }).setView([20.5937, 78.9629], 5);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors', maxZoom: 18
-  }).addTo(mapInstance);
-  return mapInstance;
-}
-
-function initDetailMap(containerId) {
-  if (detailMapInstance) { detailMapInstance.remove(); detailMapInstance = null; }
-  detailMapInstance = L.map(containerId, { zoomControl: true }).setView([20.5937, 78.9629], 5);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors', maxZoom: 18
-  }).addTo(detailMapInstance);
-  return detailMapInstance;
-}
-
-function drawRouteOnMap(mapObj, legs) {
-  // Clear existing layers
-  mapObj.eachLayer(layer => {
-    if (layer instanceof L.Polyline || layer instanceof L.Marker) mapObj.removeLayer(layer);
-  });
-
-  const points = [];
-  const colors = ['#2563eb','#d97706','#16a34a','#7c3aed','#dc2626','#0891b2'];
-
-  legs.forEach((leg, idx) => {
-    if (!leg.origin_lat || !leg.dest_lat) return;
-    const oLatLng = [leg.origin_lat, leg.origin_lon];
-    const dLatLng = [leg.dest_lat, leg.dest_lon];
-    points.push(oLatLng, dLatLng);
-
-    const color = colors[idx % colors.length];
-
-    L.polyline([oLatLng, dLatLng], { color, weight: 3, opacity: 0.8 }).addTo(mapObj);
-
-    // Origin marker
-    L.circleMarker(oLatLng, {
-      radius: 7, fillColor: color, color: '#fff', weight: 2, fillOpacity: 1
-    }).bindTooltip(`Leg ${leg.sequence} Origin: ${leg.origin}`, { sticky: true }).addTo(mapObj);
-
-    // Destination marker (star-like)
-    L.circleMarker(dLatLng, {
-      radius: 8, fillColor: '#fff', color: color, weight: 3, fillOpacity: 1
-    }).bindTooltip(`Leg ${leg.sequence} Dest: ${leg.destination}`, { sticky: true }).addTo(mapObj);
-  });
-
-  if (points.length) {
-    mapObj.fitBounds(L.latLngBounds(points), { padding: [30, 30] });
-  }
+function renderFoliumMap(containerId, htmlContent) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = `<iframe style="width:100%; height:100%; border:none; border-radius:12px;" srcdoc='${htmlContent}'></iframe>`;
 }
 
 // ---- Leg management ----
@@ -294,7 +444,7 @@ function collectLegs() {
   document.querySelectorAll('#legsContainer .leg-row').forEach(row => {
     const inputs = row.querySelectorAll('input');
     const origin = inputs[0].value.trim();
-    const dest = inputs[1].value.trim();
+    const dest   = inputs[1].value.trim();
     if (origin && dest) legs.push({ origin, destination: dest });
   });
   return legs;
@@ -302,17 +452,17 @@ function collectLegs() {
 
 // ---- Submit ----
 async function submitShipment() {
-  const sla = document.getElementById('slaDeadline').value;
+  const sla  = document.getElementById('slaDeadline').value;
   const legs = collectLegs();
   const errEl = document.getElementById('submitError');
-  const btn = document.getElementById('submitBtn');
+  const btn   = document.getElementById('submitBtn');
 
-  if (!sla) { showError('Please set an SLA deadline.'); return; }
+  if (!sla)         { showError('Please set an SLA deadline.'); return; }
   if (!legs.length) { showError('Please enter at least one complete leg.'); return; }
 
   errEl.classList.add('hidden');
-  btn.innerHTML = '<span class="spinner"></span> Analyzing...';
-  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Analyzing…';
+  btn.disabled  = true;
 
   try {
     const resp = await fetch('/employee/add_shipment', {
@@ -325,21 +475,21 @@ async function submitShipment() {
     if (!resp.ok || data.error) {
       showError(data.error || 'Submission failed.');
       btn.innerHTML = 'Analyze and Submit Shipment';
-      btn.disabled = false;
+      btn.disabled  = false;
       return;
     }
 
     renderResults(data);
-    drawRouteOnMap(mapInstance, data.legs);
+    renderFoliumMap('map', data.map_html);
     document.getElementById('mapHint').textContent = `Route displayed for ${data.shipment_ref}`;
 
     btn.innerHTML = 'Analyze and Submit Shipment';
-    btn.disabled = false;
+    btn.disabled  = false;
 
   } catch (e) {
     showError('Network error. Please try again.');
     btn.innerHTML = 'Analyze and Submit Shipment';
-    btn.disabled = false;
+    btn.disabled  = false;
   }
 }
 
@@ -367,7 +517,7 @@ function renderResults(data) {
       <div class="stat-value" style="font-size:18px;">${data.shipment_ref}</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">Overall Risk</div>
+      <div class="stat-label">Overall Risk (AI)</div>
       <div class="stat-value" style="font-size:22px;color:${riskColor(risk)};">${risk}%</div>
     </div>
     <div class="stat-card">
@@ -381,12 +531,15 @@ function renderResults(data) {
   data.legs.forEach(leg => {
     const slaC = riskColor(leg.sla_risk);
     const delC = riskColor(leg.delay_risk);
+    const prob = leg.delay_prob !== undefined ? leg.delay_prob : (leg.delay_risk / 100);
     tbody.innerHTML += `<tr>
       <td><strong>${leg.sequence}</strong></td>
       <td>${leg.origin}</td>
       <td>${leg.destination}</td>
       <td>${leg.distance_km} km</td>
       <td>${formatEta(leg.eta_hours)}</td>
+      <td class="weather-icon">${weatherIcon(leg.weather)}</td>
+      <td>${trafficLabel(leg.traffic)}</td>
       <td>
         <div class="risk-bar-wrap">
           <div class="risk-bar-bg"><div class="risk-bar-fill" style="width:${leg.sla_risk}%;background:${slaC};"></div></div>
@@ -399,6 +552,7 @@ function renderResults(data) {
           <span class="risk-bar-label" style="color:${delC};">${leg.delay_risk}%</span>
         </div>
       </td>
+      <td>${probPill(prob)}</td>
       <td>${recToChip(leg.leg_recommendation)}</td>
     </tr>`;
   });
@@ -455,10 +609,9 @@ function loadHistory(page) {
       html += '</tbody></table></div>';
       wrap.innerHTML = html;
 
-      // Pagination
-      const total = data.total;
+      const total   = data.total;
       const perPage = data.per_page;
-      const pages = Math.ceil(total / perPage);
+      const pages   = Math.ceil(total / perPage);
       let pag = '';
       if (pages > 1) {
         pag += `<button class="page-btn" onclick="loadHistory(${page-1})" ${page<=1?'disabled':''}>Prev</button>`;
@@ -473,9 +626,9 @@ function loadHistory(page) {
 
 function viewDetail(shipmentId) {
   const panel = document.getElementById('detailPanel');
-  const body = document.getElementById('detailLegsBody');
+  const body  = document.getElementById('detailLegsBody');
   panel.classList.remove('hidden');
-  body.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner" style="margin:0 auto;"></div></td></tr>';
+  body.innerHTML = '<tr><td colspan="11" class="text-center"><div class="spinner" style="margin:0 auto;"></div></td></tr>';
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   fetch(`/employee/shipment/${shipmentId}`)
@@ -484,7 +637,6 @@ function viewDetail(shipmentId) {
       document.getElementById('detailRef').textContent =
         `Ref: ${data.shipment_ref}  |  SLA: ${data.sla_deadline.slice(0,16).replace('T',' ')}  |  Risk: ${data.overall_risk_score}%  |  ${data.recommendation}`;
 
-      // Draw map
       setTimeout(() => {
         const dm = initDetailMap('detailMap');
         drawRouteOnMap(dm, data.legs);
@@ -494,12 +646,15 @@ function viewDetail(shipmentId) {
       data.legs.forEach(leg => {
         const slaC = riskColor(leg.sla_risk);
         const delC = riskColor(leg.delay_risk);
+        const prob = leg.delay_prob !== undefined ? leg.delay_prob : (leg.delay_risk / 100);
         body.innerHTML += `<tr>
           <td><strong>${leg.sequence}</strong></td>
           <td>${leg.origin}</td>
           <td>${leg.destination}</td>
           <td>${leg.distance_km} km</td>
           <td>${formatEta(leg.eta_hours)}</td>
+          <td>${weatherIcon(leg.weather)}</td>
+          <td>${trafficLabel(leg.traffic)}</td>
           <td>
             <div class="risk-bar-wrap">
               <div class="risk-bar-bg"><div class="risk-bar-fill" style="width:${leg.sla_risk}%;background:${slaC};"></div></div>
@@ -512,6 +667,7 @@ function viewDetail(shipmentId) {
               <span class="risk-bar-label" style="color:${delC};">${leg.delay_risk}%</span>
             </div>
           </td>
+          <td>${probPill(prob)}</td>
           <td>${recToChip(leg.leg_recommendation)}</td>
         </tr>`;
       });
@@ -523,16 +679,123 @@ function closeDetail() {
   if (detailMapInstance) { detailMapInstance.remove(); detailMapInstance = null; }
 }
 
+// ---- Model Info ----
+function loadModelInfo() {
+  if (modelInfoLoaded) return;
+
+  fetch('/model/info')
+    .then(r => r.json())
+    .then(data => {
+      modelInfoLoaded = true;
+
+      // KPI cards
+      document.getElementById('modelKpiGrid').innerHTML = `
+        <div class="model-kpi">
+          <div class="model-kpi-val">${(data.accuracy * 100).toFixed(1)}%</div>
+          <div class="model-kpi-label">Accuracy</div>
+        </div>
+        <div class="model-kpi">
+          <div class="model-kpi-val">${(data.roc_auc * 100).toFixed(1)}%</div>
+          <div class="model-kpi-label">ROC-AUC</div>
+        </div>
+        <div class="model-kpi">
+          <div class="model-kpi-val">${data.n_samples.toLocaleString()}</div>
+          <div class="model-kpi-label">Training Samples</div>
+        </div>
+        <div class="model-kpi">
+          <div class="model-kpi-val">${data.feature_names.length}</div>
+          <div class="model-kpi-label">Features</div>
+        </div>
+        <div class="model-kpi">
+          <div class="model-kpi-val">${data.hyperparameters.n_estimators}</div>
+          <div class="model-kpi-label">Estimators</div>
+        </div>
+        <div class="model-kpi">
+          <div class="model-kpi-val">${data.hyperparameters.max_depth}</div>
+          <div class="model-kpi-label">Max Depth</div>
+        </div>
+      `;
+
+      // Feature importance bars
+      const fiPairs = data.feature_names.map((n, i) => [n, data.feature_importances[i]]);
+      fiPairs.sort((a, b) => b[1] - a[1]);
+      const maxFi = fiPairs[0][1];
+      let fiHtml = '';
+      fiPairs.forEach(([name, val]) => {
+        const pct = ((val / maxFi) * 100).toFixed(1);
+        const display = (val * 100).toFixed(1) + '%';
+        fiHtml += `
+          <div class="fi-bar-row">
+            <div class="fi-bar-name">${name}</div>
+            <div class="fi-bar-track">
+              <div class="fi-bar-fill" style="width:${pct}%;"></div>
+            </div>
+            <div class="fi-bar-pct">${display}</div>
+          </div>`;
+      });
+      document.getElementById('featureImportanceChart').innerHTML = fiHtml;
+
+      // Confusion matrix — [[TN,FP],[FN,TP]]
+      const cm = data.confusion_matrix;
+      const tn = cm[0][0], fp = cm[0][1], fn = cm[1][0], tp = cm[1][1];
+      document.getElementById('confusionMatrix').innerHTML = `
+        <table class="cm-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Predicted: On-Time</th>
+              <th>Predicted: Delayed</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>Actual: On-Time</th>
+              <td class="cm-tn">TN = ${tn}</td>
+              <td class="cm-fp">FP = ${fp}</td>
+            </tr>
+            <tr>
+              <th>Actual: Delayed</th>
+              <td class="cm-fn">FN = ${fn}</td>
+              <td class="cm-tp">TP = ${tp}</td>
+            </tr>
+          </tbody>
+        </table>`;
+
+      // Hyperparameters grid
+      const hp = data.hyperparameters;
+      document.getElementById('hyperparamsGrid').innerHTML = `
+        <div class="hp-row"><span class="hp-key">Algorithm</span><span class="hp-val">${data.algorithm}</span></div>
+        <div class="hp-row"><span class="hp-key">n_estimators</span><span class="hp-val">${hp.n_estimators}</span></div>
+        <div class="hp-row"><span class="hp-key">learning_rate</span><span class="hp-val">${hp.learning_rate}</span></div>
+        <div class="hp-row"><span class="hp-key">max_depth</span><span class="hp-val">${hp.max_depth}</span></div>
+        <div class="hp-row"><span class="hp-key">subsample</span><span class="hp-val">${hp.subsample}</span></div>
+        <div class="hp-row"><span class="hp-key">colsample_bytree</span><span class="hp-val">${hp.colsample_bytree}</span></div>
+        <div class="hp-row"><span class="hp-key">Target</span><span class="hp-val">${data.target}</span></div>
+        <div class="hp-row"><span class="hp-key">Dataset</span><span class="hp-val">${data.dataset}</span></div>
+      `;
+    })
+    .catch(err => {
+      console.error('Model info load error:', err);
+    });
+}
+
 // ---- Section nav ----
 function showSection(name) {
   document.getElementById('sectionNew').classList.toggle('hidden', name !== 'new');
   document.getElementById('sectionHistory').classList.toggle('hidden', name !== 'history');
+  document.getElementById('sectionModel').classList.toggle('hidden', name !== 'model');
   document.getElementById('navNew').classList.toggle('active', name === 'new');
   document.getElementById('navHistory').classList.toggle('active', name === 'history');
-  document.getElementById('topbarTitle').textContent = name === 'new' ? 'New Shipment' : 'Shipment History';
-  document.getElementById('topbarSub').textContent = name === 'new' ? 'Enter route details below' : 'Your complete shipment record';
+  document.getElementById('navModel').classList.toggle('active', name === 'model');
 
-  // Invalidate map size when switching back to new section
+  const titles = {
+    new:     ['New Shipment',      'Enter route details below'],
+    history: ['Shipment History',  'Your complete shipment record'],
+    model:   ['AI Model Dashboard','XGBoost delay prediction — model performance & features'],
+  };
+  document.getElementById('topbarTitle').textContent = titles[name][0];
+  document.getElementById('topbarSub').textContent   = titles[name][1];
+
   if (name === 'new' && mapInstance) {
     setTimeout(() => mapInstance.invalidateSize(), 50);
   }
@@ -547,8 +810,8 @@ function riskColor(score) {
 
 function recToChip(rec) {
   if (!rec) return '-';
-  if (rec.toLowerCase().includes('reroute')) return `<span class="rec-chip reroute">${rec}</span>`;
-  if (rec.toLowerCase().includes('carrier')) return `<span class="rec-chip carrier">${rec}</span>`;
+  if (rec.toLowerCase().includes('reroute'))   return `<span class="rec-chip reroute">${rec}</span>`;
+  if (rec.toLowerCase().includes('carrier'))   return `<span class="rec-chip carrier">${rec}</span>`;
   if (rec.toLowerCase().includes('pre-alert')) return `<span class="rec-chip prealert">${rec}</span>`;
   return `<span class="rec-chip">${rec}</span>`;
 }
@@ -558,6 +821,26 @@ function formatEta(hours) {
   const h = Math.floor(hours);
   const m = Math.round((hours - h) * 60);
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
+function weatherIcon(level) {
+  if (level === undefined || level === null) return '—';
+  if (level === 2) return '🌧️ Heavy';
+  if (level === 1) return '☁️ Cloudy';
+  return '☀️ Clear';
+}
+
+function trafficLabel(level) {
+  if (level === undefined || level === null) return '—';
+  if (level === 2) return '<span style="color:#dc2626;font-weight:600;">🚦 Heavy</span>';
+  if (level === 1) return '<span style="color:#d97706;font-weight:600;">🚦 Moderate</span>';
+  return '<span style="color:#16a34a;font-weight:600;">🚦 Free</span>';
+}
+
+function probPill(prob) {
+  const pct = (prob * 100).toFixed(1);
+  const cls = prob >= 0.7 ? 'prob-high' : prob >= 0.4 ? 'prob-medium' : 'prob-low';
+  return `<span class="prob-pill ${cls}">${pct}%</span>`;
 }
 </script>
 

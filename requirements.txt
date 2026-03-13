@@ -4,3 +4,14 @@ folium
 scikit-learn
 xgboost
 requests
+math
+pymongo
+geopy
+matplotlib
+seaborn
+flask
+config
+datetime
+mongoDB
+OpenWeather API
+TomTom Traffic API
