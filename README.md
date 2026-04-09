@@ -1,5 +1,3 @@
-# team-02-TechZero
-
 # AI Smart Logistics – Early Delay Warning System
 
 ## Overview
